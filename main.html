@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Main Spielseite</title>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap');
+
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      overflow: hidden;
+      font-family: 'Montserrat', sans-serif;
+      background: #0d0d0d;
+      background-image:
+        radial-gradient(circle at 10% 50%, rgba(385,0,102,0.15), transparent 50%),
+        radial-gradient(circle at 90% 80%, rgba(0,255,255,0.12), transparent 50%);
+      color: #f8f8f8;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    h1 {
+      margin: 20px 0 5px;
+      font-size: 38px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: #fff;
+      text-shadow: 
+        0 0 6px #ff0050,
+        0 0 12px #00f2ea,
+        0 0 24px rgba(255,255,255,0.4);
+    }
+
+    #rundeAnzeige {
+      font-size: 28px;
+      margin-bottom: 15px;
+      color: #ddd;
+      text-shadow: 0 0 6px rgba(255,255,255,0.2);
+    }
+
+    .top {
+      display: flex;
+      align-items: flex-start;
+      flex: 1;
+      width: 100%;
+      max-width: 1400px;
+      transition: all 0.6s ease;
+    }
+
+    /* Video mittig, aber etwas nach rechts geschoben */
+    .zentriert {
+      justify-content: center;
+      padding-left: 12px; /* schiebt Video leicht nach rechts */
+    }
+
+    /* Wenn aufgedeckt → Split Layout */
+    .split {
+      justify-content: center;
+      gap: 30px;
+    }
+
+    .video-container {
+      background: linear-gradient(145deg, rgba(255,0,102,0.15), rgba(0,242,234,0.15));
+      padding: 14px;
+      border-radius: 18px;
+      border: 2px solid rgba(255,255,255,0.08);
+      box-shadow: 0 0 25px rgba(255,0,102,0.25), 0 0 25px rgba(0,242,234,0.25);
+      transition: all 0.6s ease;
+      margin-top: 60px;
+    }
+
+    iframe {
+      width: 400px;
+      height: 360px;
+      border-radius: 10px;
+      border: none;
+      display: block;
+      box-shadow: 0 0 12px rgba(0,0,0,0.6);
+    }
+
+    #antworten {
+      background: rgba(20,20,20,0.85);
+      padding: 16px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: 0 0 20px rgba(255,0,102,0.3), 0 0 20px rgba(0,242,234,0.3);
+      overflow-y: auto;
+      max-height: 360px;
+      min-width: 320px;
+      display: none;
+      margin-top: 60px; /* gleiche Höhe wie Video */
+    }
+
+    .antwort {
+      background: rgba(255,255,255,0.05);
+      margin: 8px 0;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      color: #fff;
+      border-left: 2px solid #ff0050;
+      box-shadow: 0 0 8px rgba(0,242,234,0.25);
+      transition: 0.2s ease;
+    }
+    .antwort:hover {
+      transform: translateX(4px);
+      box-shadow: 0 0 12px rgba(255,0,102,0.4), 0 0 12px rgba(0,242,234,0.4);
+    }
+
+    .controls {
+      margin-top: 20px;
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+    }
+
+    button {
+      padding: 12px 28px;
+      font-size: 15px;
+      font-weight: 700;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      color: #fff;
+      background: linear-gradient(90deg, #ff0050, #00f2ea);
+      box-shadow: 0 0 8px #ff0050, 0 0 12px #00f2ea;
+      transition: 0.3s ease;
+    }
+
+    button:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 12px #ff0050, 0 0 18px #00f2ea;
+    }
+
+    .spacer {
+      flex: 0.3;
+    }
+  </style>
+</head>
+<body>
+  <h1>WER HAT DAS REPOSTET?</h1>
+  <div id="rundeAnzeige">Lade Runde...</div>
+
+  <div id="layout" class="top zentriert">
+    <div class="video-container">
+      <iframe id="video" src="" allowfullscreen></iframe>
+      <div class="controls">
+        <button id="weiter">Weiter</button>
+        <button id="aufdecken">Aufdecken</button>
+      </div>
+    </div>
+    <div id="antworten"></div>
+  </div>
+
+  <div class="spacer"></div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDnPjmYBNxwE6QWsJyi5QF-Ij1_-CYEdvQ",
+      authDomain: "reposts-fa498.firebaseapp.com",
+      databaseURL: "https://reposts-fa498-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "reposts-fa498",
+      storageBucket: "reposts-fa498.appspot.com",
+      messagingSenderId: "267708297124",
+      appId: "1:267708297124:web:207af9bde63c82f1ab1b31"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const videos = [
+  "https://www.youtube.com/embed/2BZTk-KALgo",
+  "https://www.youtube.com/embed/NqAoz6PYur4",
+  "https://www.youtube.com/embed/2m426QKYVjI",
+  "https://www.youtube.com/embed/RoFn9vH49Io",
+  "https://www.youtube.com/embed/vzpwpdlCln8",
+  "https://www.youtube.com/embed/HSViZpiVXiQ",
+  "https://www.youtube.com/embed/MMNtRYENoDc",
+  "https://www.youtube.com/embed/yeIMnR0lVWY",
+  "https://www.youtube.com/embed/XemtbIIPQU0",
+  "https://www.youtube.com/embed/cGevCVnDLaU",
+  "https://www.youtube.com/embed/uBEt2bozemU",
+  "https://www.youtube.com/embed/nAf18zmH0mE",
+  "https://www.youtube.com/embed/8RTNuzrnAy4",
+  "https://www.youtube.com/embed/zMsGwmkzPCA",
+  "https://www.youtube.com/embed/N05nnINQm5o",
+  "https://www.youtube.com/embed/x1cDOdQlkTU",
+  "https://www.youtube.com/embed/meH4e9mPMPs",
+  "https://www.youtube.com/embed/WpWMdzCU4Es",
+  "https://www.youtube.com/embed/IK48LVLL12I",
+  "https://www.youtube.com/embed/Fi_oqURneXs",
+  "https://www.youtube.com/embed/PoBgePIoZrA",
+  "https://www.youtube.com/embed/2aI5G8J5OFY",
+  "https://www.youtube.com/embed/QbpGDT5_TU0",
+  "https://www.youtube.com/embed/mWunsQGV8sE",
+  "https://www.youtube.com/embed/cdhGjVvlAfs",
+  "https://www.youtube.com/embed/00uOa48oQ38",
+  "https://www.youtube.com/embed/NCQa9a8l1jA",
+  "https://www.youtube.com/embed/Ia6IoqQz8vQ",
+  "https://www.youtube.com/embed/xb5ufqx2ALs",
+  "https://www.youtube.com/embed/C5PqjoUe078",
+  "https://www.youtube.com/embed/kkKrXDwCIkI",
+  "https://www.youtube.com/embed/Kg5QtsWS0QE",
+  "https://www.youtube.com/embed/FrdCA38DKaY",
+  "https://www.youtube.com/embed/RiCHyY7nnf0",
+  "https://www.youtube.com/embed/96hoWOsZ4hE",
+  "https://www.youtube.com/embed/T_H0_FFmRC0",
+  "https://www.youtube.com/embed/OYtzftMtU5o",
+  "https://www.youtube.com/embed/4Yy8RDym3LM",
+  "https://www.youtube.com/embed/vP2PorEfc7M",
+  "https://www.youtube.com/embed/DMtjmuYQ-Bw",
+  "https://www.youtube.com/embed/XaMuvLH6hBU",
+  "https://www.youtube.com/embed/ipaodFTK9ow",
+  "https://www.youtube.com/embed/8hvAqrKpJTo",
+  "https://www.youtube.com/embed/2e0uulzO4tY",
+  "https://www.youtube.com/embed/minOOwm1e_8",
+  "https://www.youtube.com/embed/q2D5ixe32xg",
+  "https://www.youtube.com/embed/mTz_WxUfS5M",
+  "https://www.youtube.com/embed/scI_-VL7pT0",
+  "https://www.youtube.com/embed/hzOSaLzOVTI",
+  "https://www.youtube.com/embed/jIcY8ikOm_A",
+  "https://www.youtube.com/embed/D08x_xUzvC8",
+  "https://www.youtube.com/embed/45EO1DQj23I"
+];
+
+
+    let aktuelleRunde = 1;
+
+    db.ref("/aktuellerStatus/runde").on("value", (snapshot) => {
+      if (snapshot.exists()) {
+        aktuelleRunde = snapshot.val();
+        document.getElementById("rundeAnzeige").textContent = "Aktuelle Runde: " + aktuelleRunde;
+        document.getElementById("video").src = videos[(aktuelleRunde - 1) % videos.length];
+        ladeAntworten();
+      }
+    });
+
+    document.getElementById("weiter").addEventListener("click", () => {
+      const naechste = aktuelleRunde < videos.length ? aktuelleRunde + 1 : 1;
+
+      db.ref("/aktuellerStatus").set({ 
+        runde: naechste, 
+        aufgedeckt: false 
+      });
+
+      db.ref(`/eingaben/runde${naechste}`).set(null);
+    });
+
+    document.getElementById("aufdecken").addEventListener("click", () => {
+      db.ref("/aktuellerStatus/aufgedeckt").set(true);
+    });
+
+    function ladeAntworten() {
+      const antwortenDiv = document.getElementById("antworten");
+      antwortenDiv.innerHTML = "";
+
+      db.ref(`/eingaben/runde${aktuelleRunde}`).once("value", (snapshot) => {
+        const antworten = snapshot.val();
+        if (antworten) {
+          Object.values(antworten).forEach(a => {
+            const div = document.createElement("div");
+            div.className = "antwort";
+            div.textContent = `${a.name}: ${a.text}`;
+            antwortenDiv.appendChild(div);
+          });
+        }
+      });
+    }
+
+    db.ref("/aktuellerStatus/aufgedeckt").on("value", (snapshot) => {
+      const layout = document.getElementById("layout");
+      const antwortenDiv = document.getElementById("antworten");
+
+      if (snapshot.exists() && snapshot.val()) {
+        layout.classList.remove("zentriert");
+        layout.classList.add("split");
+        antwortenDiv.style.display = "block";
+        ladeAntworten();
+      } else {
+        layout.classList.remove("split");
+        layout.classList.add("zentriert");
+        antwortenDiv.style.display = "none";
+      }
+    });
+  </script>
+</body>
+</html>

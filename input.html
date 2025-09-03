@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Eingabe</title>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+  <style>
+    body {
+      font-family: "Poppins", sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      background: linear-gradient(135deg, #000000, #1a1a1a);
+      color: #fff;
+    }
+
+    h1 {
+      margin-bottom: 3rem;
+      font-size: 5rem;
+      color: #ff0050;
+      text-shadow: 0 0 10px rgba(255, 0, 80, 0.6);
+    }
+
+    #rundeAnzeige {
+      font-weight: bold;
+      margin: 10px 0 20px 0;
+      font-size: 1.8rem;
+      color: #aaa;
+    }
+
+    input {
+      padding: 22px;
+      margin: 8px 0;
+      font-size: 26px;
+      border: none;
+      border-radius: 12px;
+      outline: none;
+      width: 260px;
+      text-align: center;
+      background: rgba(255,255,255,0.08);
+      color: #fff;
+      transition: 0.2s;
+    }
+
+    input:focus {
+      background: rgba(255,255,255,0.15);
+      box-shadow: 0 0 0 2px #ff0050;
+    }
+
+    button {
+      margin-top: 16px;
+      padding: 16px 20px;
+      font-size: 26px;
+      background: linear-gradient(135deg, #ff0050, #ff335f);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: 0.2s;
+      width: 260px;
+    }
+
+    button:hover {
+      background: linear-gradient(135deg, #ff1a6c, #ff4d79);
+      transform: scale(1.03);
+    }
+
+    #status {
+      margin-top: 14px;
+      font-size: 2rem;
+      color: #ff0050;
+      height: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Eingabe</h1>
+  <div id="rundeAnzeige">Lade Runde...</div>
+  <input id="name" placeholder="Dein Name">
+  <input id="antwort" placeholder="Antwort eingeben">
+  <button id="senden">Senden</button>
+  <div id="status"></div>
+
+  <script>
+    // Firebase Config
+    const firebaseConfig = {
+      apiKey: "AIzaSyDnPjmYBNxwE6QWsJyi5QF-Ij1_-CYEdvQ",
+      authDomain: "reposts-fa498.firebaseapp.com",
+      databaseURL: "https://reposts-fa498-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "reposts-fa498",
+      storageBucket: "reposts-fa498.appspot.com",
+      messagingSenderId: "267708297124",
+      appId: "1:267708297124:web:207af9bde63c82f1ab1b31"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let aktuelleRunde = 1;
+
+    // Runde automatisch aus Firebase laden
+    db.ref("/aktuellerStatus/runde").on("value", (snapshot) => {
+      if (snapshot.exists()) {
+        aktuelleRunde = snapshot.val();
+        document.getElementById("rundeAnzeige").textContent = "Aktuelle Runde: " + aktuelleRunde;
+      }
+    });
+
+    document.getElementById("senden").addEventListener("click", () => {
+      const name = document.getElementById("name").value || "Anonym";
+      const antwort = document.getElementById("antwort").value;
+      if (!antwort) return;
+
+      const spielerId = name.replace(/\s+/g, "_").toLowerCase();
+
+      db.ref(`/eingaben/runde${aktuelleRunde}/${spielerId}`).set({
+        name: name,
+        text: antwort
+      }).then(() => {
+        document.getElementById("antwort").value = "";
+        document.getElementById("status").textContent = "Antwort gespeichert ✅";
+        setTimeout(() => {
+          document.getElementById("status").textContent = "";
+        }, 2000);
+      });
+    });
+  </script>
+</body>
+</html>
